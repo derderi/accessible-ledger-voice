@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Accessible Ledger — Prof:Dr.Eldirdiri Fadol (Blind-friendly)</title>
+
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f6f8;
+    margin: 0;
+    padding: 0;
+  }
+  header {
+    background-color: #005f99;
+    color: white;
+    text-align: center;
+    padding: 1rem;
+  }
+  main {
+    max-width: 950px;
+    margin: 2rem auto;
+    background: #fff;
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  }
+  select, input, button {
+    font-size: 1rem;
+    padding: .5rem;
+    margin: .3rem 0;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    width: 100%;
+  }
+  button {
+    background-color: #005f99;
+    color: white;
+    border: none;
+    cursor: pointer;
+  }
+  button:hover { background-color: #007acc; }
+  table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+  th, td { border: 1px solid #ccc; padding: .6rem; text-align: left; }
+  th { background-color: #e6f2ff; }
+  .balance { font-size: 1.3rem; font-weight: bold; color: #005f99; margin-top: 1rem; }
+  .voice-btn {
+    background-color: #ff9800;
+    color: white;
+    margin-top: .3rem;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { background-color: #222; color: #eee; }
+    main { background-color: #333; }
+    th { background-color: #444; }
+  }
+</style>
+</head>
+
+<body>
+<header>
+  <h1>Accessible Ledger — Prof:Dr.Eldirdiri Fadol (Blind-friendly)</h1>
+</header>
+
+<main>
+  <div style="text-align:right;">
+    🌐 <label for="language">Language:</label>
+    <select id="language" aria-label="Language selector">
+      <option value="en-US">English</option>
+      <option value="ar-SA">العربية</option>
+      <option value="fr-FR">Français</option>
+      <option value="it-IT">Italiano</option>
+      <option value="es-ES">Español</option>
+    </select>
+  </div>
+
+  <h2 id="sectionTitle">Add Transaction</h2>
+
+  <label for="desc">Transaction Description:</label>
+  <select id="desc" aria-label="Transaction description select">
+    <option value="">--Select--</option>
+    <option>Salary</option><option>Rent</option><option>Groceries</option>
+    <option>Electricity Bill</option><option>Water Bill</option><option>Internet</option>
+    <option>Medical Expense</option><option>Transportation</option><option>Education Fee</option>
+    <option>Loan Payment</option><option>Loan Taken</option><option>Gift</option>
+    <option>Food & Beverage</option><option>Charity</option><option>Miscellaneous</option>
+  </select>
+  <input id="customDesc" type="text" placeholder="Or say/type your own description..." aria-label="Custom description input" />
+  <button class="voice-btn" id="voiceDesc" aria-label="Speak description button">🎤 Speak Description</button>
+
+  <label for="type">Type:</label>
+  <select id="type" aria-label="Transaction type select">
+    <option value="credit">Credit (Money In)</option>
+    <option value="debit">Debit (Money Out)</option>
+    <option value="loan">Loan Taken</option>
+    <option value="repayment">Loan Repaid</option>
+    <option value="transfer">Transfer</option>
+  </select>
+  <button class="voice-btn" id="voiceType" aria-label="Speak type button">🎤 Speak Type</button>
+
+  <label for="amount">Amount:</label>
+  <input id="amount" type="number" placeholder="e.g. 100" aria-label="Amount input" />
+  <button class="voice-btn" id="voiceAmount" aria-label="Speak amount button">🎤 Speak Amount</button>
+
+  <button id="addBtn" aria-label="Add transaction">Add Transaction</button>
+  <button id="resetBtn" aria-label="Reset ledger">Reset Ledger</button>
+  <button id="exportBtn" aria-label="Export CSV">Export CSV</button>
+
+  <table id="ledgerTable" aria-label="Ledger table">
+    <thead>
+      <tr><th>Date</th><th>Description</th><th>Type</th><th>Amount</th><th>Balance</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <div class="balance" id="balance" aria-live="polite">Balance: 0</div>
+</main>
+
+<footer style="text-align:center; padding:1rem;">
+  © 2025 Accessible Ledger — Prof Dr. Eldirdiri Fadol & Colleagues
+</footer>
+
+<script>
+  // --- Speech synthesis (output) ---
+  function speak(text, lang=document.getElementById('language').value) {
+    if (!('speechSynthesis' in window)) return;
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = lang;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utter);
+  }
+
+  // --- Speech recognition (input) ---
+  function listenAndFill(targetId) {
+    const lang = document.getElementById('language').value;
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Speech Recognition not supported in this browser. Chrome recommended.");
+      return;
+    }
+    const recog = new SpeechRecognition();
+    recog.lang = lang;
+    recog.interimResults = false;
+    recog.maxAlternatives = 1;
+    recog.start();
+    recog.onresult = (e) => {
+      const transcript = e.results[0][0].transcript;
+      const el = document.getElementById(targetId);
+      if (el.tagName === 'SELECT') {
+        // try to match option (case-insensitive)
+        const val = transcript.trim();
+        const options = Array.from(el.options).map(o=>o.value || o.text);
+        const match = options.find(o => o.toLowerCase() === val.toLowerCase() || (o.toLowerCase().includes(val.toLowerCase())) );
+        if (match) el.value = match;
+        else if (targetId === 'type') {
+          // try mapping common words
+          const map = {'credit':'credit','in':'credit','income':'credit','debit':'debit','out':'debit','expense':'debit'};
+          const key = transcript.toLowerCase().split(' ')[0];
+          if (map[key]) el.value = map[key];
+        }
+      } else {
+        el.value = transcript;
+      }
+      speak("Recorded: " + transcript, lang);
+    };
+    recog.onerror = (err) => {
+      console.error('Speech recognition error', err);
+      alert('Speech recognition error: ' + err.error);
+    };
+  }
+
+  document.getElementById('voiceDesc').onclick = ()=>listenAndFill('customDesc');
+  document.getElementById('voiceType').onclick = ()=>listenAndFill('type');
+  document.getElementById('voiceAmount').onclick = ()=>listenAndFill('amount');
+
+  // --- Ledger core ---
+  let transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
+  let balance = 0;
+
+  const tbody = document.querySelector('#ledgerTable tbody');
+  const balanceDiv = document.getElementById('balance');
+
+  function render() {
+    tbody.innerHTML = '';
+    balance = 0;
+    transactions.forEach(t => {
+      if (t.type==='credit' || t.type==='repayment') balance += Number(t.amount);
+      else balance -= Number(t.amount);
+      const row = document.createElement('tr');
+      row.innerHTML = `<td>${t.date}</td><td>${escapeHtml(t.desc)}</td><td>${t.type}</td><td>${Number(t.amount).toFixed(2)}</td><td>${balance.toFixed(2)}</td>`;
+      tbody.appendChild(row);
+    });
+    balanceDiv.textContent = "Balance: " + balance.toFixed(2);
+    speak("Current balance " + balance.toFixed(2));
+  }
+
+  function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, function(m){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]; }); }
+
+  function addTransaction() {
+    const descSel = document.getElementById('desc').value;
+    const custom = document.getElementById('customDesc').value.trim();
+    const desc = custom || descSel;
+    const type = document.getElementById('type').value;
+    const amount = parseFloat(document.getElementById('amount').value);
+    if (!desc || isNaN(amount) || amount<=0) {
+      speak("Please provide valid details.");
+      alert("Please fill all fields correctly.");
+      return;
+    }
+    const date = new Date().toLocaleString();
+    transactions.push({date, desc, type, amount: Number(amount)});
+    localStorage.setItem('transactions', JSON.stringify(transactions));
+    render();
+    document.getElementById('customDesc').value='';
+    document.getElementById('amount').value='';
+  }
+
+  document.getElementById('addBtn').onclick = addTransaction;
+  document.getElementById('resetBtn').onclick = ()=>{
+    if(confirm("Reset ledger?")){
+      transactions=[];
+      localStorage.removeItem('transactions');
+      render();
+      speak("Ledger cleared");
+    }
+  };
+  document.getElementById('exportBtn').onclick = ()=>{
+    let running=0;
+    const rows=["Date,Description,Type,Amount,Balance"];
+    transactions.forEach(t=>{
+      if (t.type==='credit'||t.type==='repayment') running+=Number(t.amount);
+      else running-=Number(t.amount);
+      rows.push(`${t.date},${t.desc},${t.type},${Number(t.amount).toFixed(2)},${running.toFixed(2)}`);
+    });
+    const blob=new Blob([rows.join("\n")],{type:"text/csv"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url;a.download="ledger.csv";a.click();
+  };
+
+  // initialize
+  render();
+</script>
+</body>
+</html>
